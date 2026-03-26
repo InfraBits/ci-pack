@@ -18,5 +18,6 @@ Default configuration:
       - uses: infrabits/ci-pack@main
         with:
           image: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          use_builder: latest
           runtime_release: ${{ github.sha }}
 ```
