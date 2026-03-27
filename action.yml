@@ -33,6 +33,10 @@ inputs:
     required: false
     type: string
     default: ""
+  run_safety_checks:
+    required: false
+    type: string
+    default: "true"
 
 runs:
   using: "composite"
@@ -133,3 +137,13 @@ runs:
         # Avoid set -x as it exposes secrets contained in inputs.build_args
         echo "Running pack for ${{ inputs.image }} with ${build_args[@]}"
         pack build "${{ inputs.image }}" "${build_args[@]}"
+
+    - name: Scan image with trivy
+      shell: bash
+      run: |
+        # Generic
+        docker run -i \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        ghcr.io/aquasecurity/trivy image --scanners vuln "${{ inputs.image }}"
+
+      if: inputs.run_safety_checks == 'true'
