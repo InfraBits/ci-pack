@@ -13,10 +13,6 @@ inputs:
   runtime_release:
     required: false
     type: string
-  builder:
-    required: false
-    type: string
-    default: ""
   use_builder:
     required: false
     type: string
@@ -45,27 +41,39 @@ runs:
       id: config
       shell: bash
       run: |
+        set -e -o pipefail
+
         if [ "${{ inputs.use_builder }}" == "latest" ];
         then
-          echo "Using latest builder"
-          echo "builder_image=tools-harbor.wmcloud.org/toolforge/heroku-builder:24_0.21.5" >> $GITHUB_OUTPUT
+          builder_image=$(curl -s https://api.svc.toolforge.org/builds/v1/supported-versions | jq -r .latest.builder)
+          echo "Using latest builder $builder_image"
+          echo "builder_image=$builder_image" >> $GITHUB_OUTPUT
+
         elif [ "${{ inputs.use_builder }}" == "stable" ];
         then
-          echo "Using stable builder"
-          echo "builder_image=tools-harbor.wmcloud.org/toolforge/heroku-builder:22" >> $GITHUB_OUTPUT
+          builder_image=$(curl -s https://api.svc.toolforge.org/builds/v1/supported-versions | jq -r .default.builder)
+          echo "Using stable (default) builder: $builder_image"
+          echo "builder_image=$builder_image" >> $GITHUB_OUTPUT
+
         elif [ "${{ inputs.use_builder }}" == "deprecated" ];
         then
-          echo "Using deprecated builder"
-          echo "builder_image=tools-harbor.wmcloud.org/toolforge/heroku-builder:22" >> $GITHUB_OUTPUT
-          #echo "Deprecated builder has expired"
-          #exit 1
-        elif [ ! -z "${{ inputs.builder }}" ];
-        then
-          echo "Using custom builder: ${{ inputs.builder }}"
-          echo "builder_image=${{ inputs.builder }}" >> $GITHUB_OUTPUT
+          config=$(curl -s https://api.svc.toolforge.org/builds/v1/supported-versions)
+          builder_image=$(jq -r .deprecated.builder <<< "$config")
+          valid_until=$(jq -r .deprecated.valid_until <<< "$config")
+
+          if [ "$(jq -r .deprecated.is_valid <<< "$config")" != "true" ];
+          then
+            echo "Deprecated builder has expired (valid until $valid_until): $builder_image"
+            exit 1;
+          fi
+
+          echo "Using deprecated builder: $builder_image"
+          echo "::warning::Deprecated builder will start failing at $valid_until"
+          echo "builder_image=$builder_image" >> $GITHUB_OUTPUT
+
         else
-          echo "Unknown builder specified: ${{ inputs.use_builder }}"
-          exit 1
+          echo "Using custom builder: ${{ inputs.use_builder }}"
+          echo "builder_image=${{ inputs.use_builder }}" >> $GITHUB_OUTPUT
         fi
 
     - name: Install pack
