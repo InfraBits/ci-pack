@@ -45,7 +45,11 @@ runs:
       id: config
       shell: bash
       run: |
-        if [ "${{ inputs.use_builder }}" == "latest" ];
+        if [ "${{ inputs.use_builder }}" == "upstream" ];
+        then
+          echo "Using upstream builder"
+          echo "builder_image=heroku/builder:24" >> $GITHUB_OUTPUT
+        elif [ "${{ inputs.use_builder }}" == "latest" ];
         then
           echo "Using latest builder"
           echo "builder_image=tools-harbor.wmcloud.org/toolforge/heroku-builder:24_0.21.5" >> $GITHUB_OUTPUT
