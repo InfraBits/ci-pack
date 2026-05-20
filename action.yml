@@ -145,9 +145,39 @@ runs:
     - name: Scan image with trivy
       shell: bash
       run: |
-        # Generic
-        docker run -i \
-        -v /var/run/docker.sock:/var/run/docker.sock \
-        ghcr.io/aquasecurity/trivy image --scanners vuln "${{ inputs.image }}"
+        mkdir -p "${{ github.workspace }}/trivy-out"
+
+        function execute_scan() {
+            docker run -i \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                -v "${{ github.workspace }}/trivy-out:/out" \
+                ghcr.io/aquasecurity/trivy \
+                image \
+                --scanners vuln \
+                --severity "CRITICAL,HIGH" \
+                --exit-code 0 \
+                "$@" \
+                "${{ inputs.image }}"
+        }
+
+        execute_scan --ignore-unfixed --format template --template @contrib/html.tpl --output /out/trivy.html
+        execute_scan --ignore-unfixed --format sarif --output /out/trivy.sarif
+
+      if: inputs.run_safety_checks == 'true'
+
+    - name: Upload trivy reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: trivy-report
+        path: "${{ github.workspace }}/trivy-out/trivy.html"
+
+      if: inputs.run_safety_checks == 'true'
+
+    - name: Upload trivy SARIF report
+      uses: github/codeql-action/upload-sarif@v4
+      continue-on-error: true
+      with:
+        sarif_file: "${{ github.workspace }}/trivy-out/trivy.sarif"
+        category: trivy
 
       if: inputs.run_safety_checks == 'true'
