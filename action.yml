@@ -45,6 +45,10 @@ inputs:
     required: false
     type: string
     default: "true"
+  github-token:
+    required: false
+    type: string
+    default: ""
 
 runs:
   using: "composite"
@@ -53,6 +57,8 @@ runs:
       id: config
       shell: bash
       run: |
+        echo "image_name=$(tr '[:upper:]' '[:lower:]' <<< "${{ inputs.image }}")" >> $GITHUB_OUTPUT
+
         if [ -n "${{ inputs.builder }}" ];
         then
           echo "Using custom builder: ${{ inputs.builder }}"
@@ -145,23 +151,28 @@ runs:
         fi
 
         # Avoid set -x as it exposes secrets contained in build_env
-        echo "Running pack for ${{ inputs.image }}"
-        pack build "${{ inputs.image }}" "${build_args[@]}"
+        echo "Running pack for ${{ steps.config.outputs.image_name }}"
+        pack build "${{ steps.config.outputs.image_name }}" "${build_args[@]}"
 
     - name: Scan Image
       uses: infrabits/ci-trivy@main
       with:
-        image: "${{ inputs.image }}"
-        comment_on_pr: "${{ inputs.comment_safety_checks }}"
+        image: "${{ steps.config.outputs.image_name }}"
+        comment_on_pr: "${{ inputs.comment_safety_checks == 'true' && inputs.github-token != '' }}"
+        upload_sarif: "${{ inputs.github-token != '' }}"
+        github-token: "${{ inputs.github-token }}"
       if: inputs.run_safety_checks == 'true'
+
+    - name: Login to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ inputs.github-token }}
+      if: inputs.publish_image == 'true' && startsWith(steps.config.outputs.image_name, 'ghcr.io/')
 
     - name: Publish image
       shell: bash
       run: |
-        if [[ "${{ inputs.image }}" == ghcr.io/* ]];
-        then
-          echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-        fi
-
-        docker push "${{ inputs.image }}"
+        docker push "${{ steps.config.outputs.image_name }}"
       if: inputs.publish_image == 'true'

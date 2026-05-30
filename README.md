@@ -20,4 +20,5 @@ Default configuration:
           image: ghcr.io/${{ github.repository }}:${{ github.sha }}
           use_builder: latest
           runtime_release: ${{ github.sha }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
