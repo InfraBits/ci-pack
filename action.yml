@@ -33,6 +33,10 @@ inputs:
     required: false
     type: string
     default: ""
+  publish_image:
+    required: false
+    type: string
+    default: "true"
   run_safety_checks:
     required: false
     type: string
@@ -150,3 +154,14 @@ runs:
         image: "${{ inputs.image }}"
         comment_on_pr: "${{ inputs.comment_safety_checks }}"
       if: inputs.run_safety_checks == 'true'
+
+    - name: Publish image
+      shell: bash
+      run: |
+        if [[ "${{ inputs.image }}" == ghcr.io/* ]];
+        then
+          echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+        fi
+
+        docker push "${{ inputs.image }}"
+      if: inputs.publish_image == 'true'
