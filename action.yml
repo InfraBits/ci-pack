@@ -111,13 +111,13 @@ runs:
         fi
 
         # x-ref https://github.com/heroku/cnb-builder-images/blob/main/builder-24/builder.toml
-        build_args+=(
-          "--buildpack" "${{ inputs.buildpack }}"
-        )
         if [ -f "${{ inputs.path }}/project.toml" ];
         then
           build_args+=("--buildpack" "heroku/deb-packages")
         fi
+        build_args+=(
+          "--buildpack" "${{ inputs.buildpack }}"
+        )
         if [ -f "${{ inputs.path }}/Procfile" ];
         then
           build_args+=("--buildpack" "heroku/procfile")
