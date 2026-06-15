@@ -70,15 +70,33 @@ runs:
         elif [ "${{ inputs.use_builder }}" == "latest" ];
         then
           echo "Using latest builder"
-          echo "builder_image=tools-harbor.wmcloud.org/toolforge/heroku-builder:24_0.21.5" >> $GITHUB_OUTPUT
+          config=$(curl -sf 'https://gitlab.wikimedia.org/repos/cloud/toolforge/toolforge-deploy/-/raw/main/components/builds-api/values/tools.yaml.gotmpl')
+          echo "builder_image=$(yq .config.latestBuilder <<< "${config}")" >> $GITHUB_OUTPUT
         elif [ "${{ inputs.use_builder }}" == "stable" ];
         then
           echo "Using stable builder"
-          echo "builder_image=tools-harbor.wmcloud.org/toolforge/heroku-builder:22" >> $GITHUB_OUTPUT
+          config=$(curl -sf 'https://gitlab.wikimedia.org/repos/cloud/toolforge/toolforge-deploy/-/raw/main/components/builds-api/values/tools.yaml.gotmpl')
+          echo "builder_image=$(yq .config.builder <<< "${config}")" >> $GITHUB_OUTPUT
         elif [ "${{ inputs.use_builder }}" == "deprecated" ];
         then
-          echo "Deprecated builder has expired"
-          exit 1
+          config=$(curl -sf 'https://gitlab.wikimedia.org/repos/cloud/toolforge/toolforge-deploy/-/raw/main/components/builds-api/values/tools.yaml.gotmpl')
+
+          valid_until=$(yq .config.deprecatedValidUntil <<< "${config}")
+          if [ -z "${valid_until}" ] || [ "${valid_until}" == "null" ];
+          then
+            echo "Failed to find deprecation time in config"
+            echo "${config}"
+            exit 1
+          fi
+
+          if [ "$(date -d "${valid_until}" +%s)" -lt "$(date +%s)" ];
+          then
+            echo "Deprecated builder has expired (${valid_until})"
+            exit 1
+          fi
+
+          echo "::warning::Deprecated builder will start failing at $valid_until"
+          echo "builder_image=$(yq .config.deprecatedBuilder <<< "${config}")" >> $GITHUB_OUTPUT
         else
           echo "Unknown builder specified: ${{ inputs.use_builder }}"
           exit 1
