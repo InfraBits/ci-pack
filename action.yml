@@ -25,6 +25,10 @@ inputs:
     required: false
     type: string
     default: ""
+  detect_buildpacks:
+    required: false
+    type: string
+    default: "true"
   build_env:
     required: false
     type: string
@@ -128,24 +132,34 @@ runs:
           done <<< "${{ inputs.build_env }}"
         fi
 
-        # x-ref https://github.com/heroku/cnb-builder-images/blob/main/builder-24/builder.toml
-
-        ## https://github.com/heroku/buildpacks-deb-packages
-        if [ -f "${{ inputs.path }}/project.toml" ] && grep -q '\[com.heroku.buildpacks.deb-packages\]' "${{ inputs.path }}/project.toml";
+        if [ "${{ inputs.detect_buildpacks }}" == "true" ];
         then
-          build_args+=("--buildpack" "heroku/deb-packages")
-        fi
+          # x-ref https://github.com/heroku/cnb-builder-images/blob/main/builder-24/builder.toml
 
-        ## https://github.com/heroku/buildpacks-nodejs
-        if [ -f "${{ inputs.path }}/package.json" ];
-        then
-          build_args+=("--buildpack" "heroku/nodejs")
-        fi
+          ## https://github.com/heroku/buildpacks-deb-packages
+          if [ -f "${{ inputs.path }}/project.toml" ] && grep -q '\[com.heroku.buildpacks.deb-packages\]' "${{ inputs.path }}/project.toml";
+          then
+            build_args+=("--buildpack" "heroku/deb-packages")
+          fi
 
-        ## https://github.com/heroku/buildpacks-procfile
-        if [ -f "${{ inputs.path }}/Procfile" ];
-        then
-          build_args+=("--buildpack" "heroku/procfile")
+          ## https://github.com/heroku/buildpacks-nodejs
+          if [ -f "${{ inputs.path }}/package.json" ];
+          then
+            build_args+=("--buildpack" "heroku/nodejs")
+          fi
+
+          ## https://github.com/heroku/buildpacks-procfile
+          if [ -f "${{ inputs.path }}/Procfile" ];
+          then
+            build_args+=("--buildpack" "heroku/procfile")
+          fi
+
+          ## https://github.com/heroku/buildpacks-python
+          ## Note: this pack handles a lot more (Pipfile, uv, requirements.txt etc), this is 'our' standard
+          if [ -f "${{ inputs.path }}/pyproject.toml" ];
+          then
+            build_args+=("--buildpack" "heroku/python")
+          fi
         fi
 
         ## Explicit additional buildpack
@@ -154,13 +168,6 @@ runs:
           build_args+=(
             "--buildpack" "${{ inputs.buildpack }}"
           )
-        fi
-
-        ## https://github.com/heroku/buildpacks-python
-        ## Note: this pack handles a lot more (Pipfile, uv, requirements.txt etc), this is 'our' standard
-        if [ -f "${{ inputs.path }}/pyproject.toml" ];
-        then
-          build_args+=("--buildpack" "heroku/python")
         fi
 
         # Future proof handling other vars
