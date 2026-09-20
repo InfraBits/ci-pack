@@ -169,6 +169,7 @@ runs:
         if [ -n "${{ inputs.runtime_release }}" ];
         then
           runtime_env_vars+=(-e "RUNTIME_ENVVAR_RELEASE_TAG=${{ inputs.runtime_release }}")
+          build_args+=(-e "RELEASE_TAG=${{ inputs.runtime_release }}")
         fi
 
         if [ -n "${{ inputs.runtime_env }}" ];
