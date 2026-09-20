@@ -24,7 +24,7 @@ inputs:
   buildpack:
     required: false
     type: string
-    default: "heroku/python"
+    default: ""
   build_env:
     required: false
     type: string
@@ -129,16 +129,32 @@ runs:
         fi
 
         # x-ref https://github.com/heroku/cnb-builder-images/blob/main/builder-24/builder.toml
+
+        ## https://github.com/heroku/buildpacks-deb-packages
         if [ -f "${{ inputs.path }}/project.toml" ];
         then
           build_args+=("--buildpack" "heroku/deb-packages")
         fi
-        build_args+=(
-          "--buildpack" "${{ inputs.buildpack }}"
-        )
+
+        ## https://github.com/heroku/buildpacks-python
+        ## Note: this pack handles a lot more (Pipfile, uv, requirements.txt etc), this is 'our' standard
+        if [ -f "${{ inputs.path }}/pyproject.toml" ];
+        then
+          build_args+=("--buildpack" "heroku/python")
+        fi
+
+        ## https://github.com/heroku/buildpacks-procfile
         if [ -f "${{ inputs.path }}/Procfile" ];
         then
           build_args+=("--buildpack" "heroku/procfile")
+        fi
+
+        ## Explicit additional buildpack
+        if [ ! -z "${{ inputs.buildpack }}" ];
+        then
+          build_args+=(
+            "--buildpack" "${{ inputs.buildpack }}"
+          )
         fi
 
         # Future proof handling other vars
