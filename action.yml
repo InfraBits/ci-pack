@@ -131,7 +131,7 @@ runs:
         # x-ref https://github.com/heroku/cnb-builder-images/blob/main/builder-24/builder.toml
 
         ## https://github.com/heroku/buildpacks-deb-packages
-        if [ -f "${{ inputs.path }}/project.toml" ];
+        if [ -f "${{ inputs.path }}/project.toml" ] && grep -q '\[com.heroku.buildpacks.deb-packages\]' "${{ inputs.path }}/project.toml";
         then
           build_args+=("--buildpack" "heroku/deb-packages")
         fi
