@@ -136,13 +136,6 @@ runs:
           build_args+=("--buildpack" "heroku/deb-packages")
         fi
 
-        ## https://github.com/heroku/buildpacks-python
-        ## Note: this pack handles a lot more (Pipfile, uv, requirements.txt etc), this is 'our' standard
-        if [ -f "${{ inputs.path }}/pyproject.toml" ];
-        then
-          build_args+=("--buildpack" "heroku/python")
-        fi
-
         ## https://github.com/heroku/buildpacks-nodejs
         if [ -f "${{ inputs.path }}/package.json" ];
         then
@@ -161,6 +154,13 @@ runs:
           build_args+=(
             "--buildpack" "${{ inputs.buildpack }}"
           )
+        fi
+
+        ## https://github.com/heroku/buildpacks-python
+        ## Note: this pack handles a lot more (Pipfile, uv, requirements.txt etc), this is 'our' standard
+        if [ -f "${{ inputs.path }}/pyproject.toml" ];
+        then
+          build_args+=("--buildpack" "heroku/python")
         fi
 
         # Future proof handling other vars
