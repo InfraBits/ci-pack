@@ -143,6 +143,12 @@ runs:
           build_args+=("--buildpack" "heroku/python")
         fi
 
+        ## https://github.com/heroku/buildpacks-nodejs
+        if [ -f "${{ inputs.path }}/package.json" ];
+        then
+          build_args+=("--buildpack" "heroku/nodejs")
+        fi
+
         ## https://github.com/heroku/buildpacks-procfile
         if [ -f "${{ inputs.path }}/Procfile" ];
         then
