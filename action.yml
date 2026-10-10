@@ -166,7 +166,7 @@ runs:
         if [ ! -z "${{ inputs.buildpack }}" ];
         then
           build_args+=(
-            "--buildpack" "${{ inputs.buildpack }}"
+            "--post-buildpack" "${{ inputs.buildpack }}"
           )
         fi
 
@@ -193,7 +193,7 @@ runs:
         if [ ${#runtime_env_vars[@]} -gt 0 ];
         then
           build_args+=(
-            "--buildpack" "https://github.com/InfraBits/envvar-buildpack/releases/download/v1.0.0/buildpack.tar.gz"
+            "--post-buildpack" "https://github.com/InfraBits/envvar-buildpack/releases/download/v1.0.0/buildpack.tar.gz"
           )
           build_args+=("${runtime_env_vars[@]}")
         fi
