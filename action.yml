@@ -111,6 +111,15 @@ runs:
       run: |
         latest_version=$(curl -fsSL https://api.github.com/repos/buildpacks/pack/releases/latest | jq -r .tag_name)
         curl -fsSL "https://github.com/buildpacks/pack/releases/download/${latest_version}/pack-${latest_version}-linux.tgz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv pack
+        pack --version
+
+    - name: Login to GHCR
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ inputs.github-token }}
+      if: inputs.publish_image == 'true' && startsWith(steps.config.outputs.image_name, 'ghcr.io/')
 
     - name: Build image
       shell: bash
@@ -197,6 +206,11 @@ runs:
           build_args+=("${runtime_env_vars[@]}")
         fi
 
+        if [ "${{ inputs.publish_image }}" == "true" ];
+        then
+          build_args+=("--publish")
+        fi
+
         # Avoid set -x as it exposes secrets contained in build_env
         echo "Running pack for ${{ steps.config.outputs.image_name }}"
         pack build "${{ steps.config.outputs.image_name }}" "${build_args[@]}"
@@ -210,16 +224,3 @@ runs:
         github-token: "${{ inputs.github-token }}"
       if: inputs.run_safety_checks == 'true'
 
-    - name: Login to GHCR
-      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ inputs.github-token }}
-      if: inputs.publish_image == 'true' && startsWith(steps.config.outputs.image_name, 'ghcr.io/')
-
-    - name: Publish image
-      shell: bash
-      run: |
-        docker push "${{ steps.config.outputs.image_name }}"
-      if: inputs.publish_image == 'true'
