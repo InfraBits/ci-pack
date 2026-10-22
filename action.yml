@@ -20,7 +20,7 @@ inputs:
   use_builder:
     required: false
     type: string
-    default: "stable"
+    default: "upstream"
   buildpack:
     required: false
     type: string
@@ -71,17 +71,17 @@ runs:
         then
           echo "Using upstream builder"
           echo "builder_image=heroku/builder:24" >> $GITHUB_OUTPUT
-        elif [ "${{ inputs.use_builder }}" == "latest" ];
+        elif [ "${{ inputs.use_builder }}" == "toolforge-latest" ];
         then
           echo "Using latest builder"
           config=$(curl -sf 'https://gitlab.wikimedia.org/repos/cloud/toolforge/toolforge-deploy/-/raw/main/components/builds-api/values/tools.yaml.gotmpl')
           echo "builder_image=$(yq .config.latestBuilder <<< "${config}")" >> $GITHUB_OUTPUT
-        elif [ "${{ inputs.use_builder }}" == "stable" ];
+        elif [ "${{ inputs.use_builder }}" == "toolforge-stable" ];
         then
           echo "Using stable builder"
           config=$(curl -sf 'https://gitlab.wikimedia.org/repos/cloud/toolforge/toolforge-deploy/-/raw/main/components/builds-api/values/tools.yaml.gotmpl')
           echo "builder_image=$(yq .config.builder <<< "${config}")" >> $GITHUB_OUTPUT
-        elif [ "${{ inputs.use_builder }}" == "deprecated" ];
+        elif [ "${{ inputs.use_builder }}" == "toolforge-deprecated" ];
         then
           config=$(curl -sf 'https://gitlab.wikimedia.org/repos/cloud/toolforge/toolforge-deploy/-/raw/main/components/builds-api/values/tools.yaml.gotmpl')
 
