@@ -176,11 +176,23 @@ runs:
           fi
         fi
 
+        # --post-buildpack only appends to the builder's order groups, it is ignored once
+        # any --buildpack is specified, so append to the explicit list when we have one
+        append_buildpack_flag="--post-buildpack"
+        for arg in "${build_args[@]}";
+        do
+          if [ "${arg}" == "--buildpack" ];
+          then
+            append_buildpack_flag="--buildpack"
+            break
+          fi
+        done
+
         ## Explicit additional buildpack
         if [ ! -z "${{ inputs.buildpack }}" ];
         then
           build_args+=(
-            "--post-buildpack" "${{ inputs.buildpack }}"
+            "${append_buildpack_flag}" "${{ inputs.buildpack }}"
           )
         fi
 
@@ -207,7 +219,7 @@ runs:
         if [ ${#runtime_env_vars[@]} -gt 0 ];
         then
           build_args+=(
-            "--post-buildpack" "https://github.com/InfraBits/envvar-buildpack/releases/download/v1.0.0/buildpack.tar.gz"
+            "${append_buildpack_flag}" "https://github.com/InfraBits/envvar-buildpack/releases/download/v1.0.0/buildpack.tar.gz"
           )
           build_args+=("${runtime_env_vars[@]}")
         fi
