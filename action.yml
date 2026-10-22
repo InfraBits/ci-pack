@@ -109,9 +109,8 @@ runs:
     - name: Install pack
       shell: bash
       run: |
-        sudo add-apt-repository ppa:cncf-buildpacks/pack-cli
-        sudo apt-get update
-        sudo apt-get install -y pack-cli
+        latest_version=$(curl -fsSL https://api.github.com/repos/buildpacks/pack/releases/latest | jq -r .tag_name)
+        curl -fsSL "https://github.com/buildpacks/pack/releases/download/${latest_version}/pack-${latest_version}-linux.tgz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv pack
 
     - name: Build image
       shell: bash
