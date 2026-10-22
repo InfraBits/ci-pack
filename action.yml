@@ -168,6 +168,12 @@ runs:
           then
             build_args+=("--buildpack" "heroku/python")
           fi
+
+          ## https://github.com/heroku/buildpacks-php
+          if [ -f "${{ inputs.path }}/composer.json" ];
+          then
+            build_args+=("--buildpack" "heroku/php")
+          fi
         fi
 
         ## Explicit additional buildpack
