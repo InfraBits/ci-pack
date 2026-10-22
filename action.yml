@@ -70,7 +70,7 @@ runs:
         elif [ "${{ inputs.use_builder }}" == "upstream" ];
         then
           echo "Using upstream builder"
-          echo "builder_image=heroku/builder:24" >> $GITHUB_OUTPUT
+          echo "builder_image=heroku/builder:26" >> $GITHUB_OUTPUT
         elif [ "${{ inputs.use_builder }}" == "toolforge-latest" ];
         then
           echo "Using latest builder"
