@@ -216,7 +216,7 @@ runs:
         pack build "${{ steps.config.outputs.image_name }}" "${build_args[@]}"
 
     - name: Scan Image
-      uses: infrabits/ci-trivy@3b5a7743218856d8c50557e842ed565076dd1c42 # main
+      uses: infrabits/ci-trivy@0aafeb6a9b1324c7f4030e566321794a1bc48094 # v1.1.0
       with:
         image: "${{ steps.config.outputs.image_name }}"
         comment_on_pr: "${{ inputs.comment_safety_checks == 'true' && inputs.github-token != '' }}"
