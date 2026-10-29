@@ -141,6 +141,7 @@ runs:
         build_args=(
           "--builder" "${{ steps.config.outputs.builder_image }}"
           "--path" "${{ inputs.path }}"
+          "--sbom-output-dir" "sbom/"
         )
 
         if [ -n "${{ inputs.build_env }}" ];
@@ -248,9 +249,9 @@ runs:
         pack build "${{ steps.config.outputs.image_name }}" "${build_args[@]}"
 
     - name: Scan Image
-      uses: infrabits/ci-trivy@0aafeb6a9b1324c7f4030e566321794a1bc48094 # v1.1.0
+      uses: infrabits/ci-trivy@4ea717ea7b4a3b471d22e84a23462a07427a9c0f # feature/add-sbom
       with:
-        image: "${{ steps.config.outputs.image_name }}"
+        sbom: "sbom/launch"
         comment_on_pr: "${{ inputs.comment_safety_checks == 'true' && inputs.github-token != '' }}"
         upload_sarif: "${{ inputs.github-token != '' }}"
         github-token: "${{ inputs.github-token }}"
