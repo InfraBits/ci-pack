@@ -248,12 +248,140 @@ runs:
         echo "Running pack for ${{ steps.config.outputs.image_name }}"
         pack build "${{ steps.config.outputs.image_name }}" "${build_args[@]}"
 
-    - name: Scan Image
-      uses: infrabits/ci-trivy@4ea717ea7b4a3b471d22e84a23462a07427a9c0f # feature/add-sbom
-      with:
-        sbom: "sbom/launch"
-        comment_on_pr: "${{ inputs.comment_safety_checks == 'true' && inputs.github-token != '' }}"
-        upload_sarif: "${{ inputs.github-token != '' }}"
-        github-token: "${{ inputs.github-token }}"
+    - name: Install syft & grype
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token || github.token }}
+      run: |
+        for tool in syft grype;
+        do
+          latest_version=$(gh api "repos/anchore/${tool}/releases/latest" --jq .tag_name)
+          curl -fsSL "https://github.com/anchore/${tool}/releases/download/${latest_version}/${tool}_${latest_version#v}_linux_amd64.tar.gz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv "${tool}"
+          "${tool}" version
+        done
       if: inputs.run_safety_checks == 'true'
+
+    - name: Scan Image
+      id: scan
+      shell: bash
+      run: |
+        report_dir="${{ runner.temp }}/grype-$(uuidgen)"
+        mkdir -p "${report_dir}"
+        echo "report_dir=${report_dir}" >> $GITHUB_OUTPUT
+
+        syft scan "${{ steps.config.outputs.image_name }}" -o syft-json="${report_dir}/sbom.syft.json"
+        grype "sbom:${report_dir}/sbom.syft.json" -o table -o json="${report_dir}/grype.json"
+      if: inputs.run_safety_checks == 'true'
+
+    - name: Comment on PR
+      uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('${{ steps.scan.outputs.report_dir }}/grype.json', 'utf8'));
+
+          async function run() {
+            const severityIcon = { Critical: '🔴', High: '🟠' };
+            const severityOrder = ['Critical', 'High'];
+
+            // Match ci-trivy: only report fixable critical/high vulnerabilities
+            const seen = new Set();
+            const vulns = [];
+            for (const m of (data.matches || [])) {
+              const v = m.vulnerability;
+              const a = m.artifact;
+              if (!severityOrder.includes(v.severity) || v.fix?.state !== 'fixed') {
+                continue;
+              }
+              const key = `${v.id}/${a.name}/${a.version}`;
+              if (!seen.has(key)) {
+                seen.add(key);
+                vulns.push({ v, a });
+              }
+            }
+            vulns.sort((x, y) =>
+              severityOrder.indexOf(x.v.severity) - severityOrder.indexOf(y.v.severity) ||
+              x.a.name.localeCompare(y.a.name));
+
+            const byType = {};
+            for (const entry of vulns) {
+              (byType[entry.a.type] ||= []).push(entry);
+            }
+
+            let sections = [];
+            for (const [type, entries] of Object.entries(byType).sort()) {
+              const rows = entries.map(({ v, a }) => {
+                const icon = severityIcon[v.severity] || '';
+                const id = v.dataSource ? `[${v.id}](${v.dataSource})` : v.id;
+                let title = (v.description || '').replace(/\s+/g, ' ').replace(/\|/g, '\\|');
+                if (title.length > 120) {
+                  title = title.slice(0, 117) + '...';
+                }
+                return `| ${icon} ${v.severity} | ${a.name} | ${a.version} | ${v.fix.versions.join(', ') || '—'} | ${id} | ${title} |`;
+              });
+              sections.push(
+                `### ${type} packages\n` +
+                `| Severity | Package | Installed | Fixed | Vulnerability | Description |\n` +
+                `|----------|---------|-----------|-------|---------------|-------------|\n` +
+                rows.join('\n')
+              );
+            }
+
+            const marker = '<!-- grype-scan -->';
+            const maxBody = 65536;
+            const header = '## Grype Security Scan\n\n';
+            const truncationNotice = '\n\n> ⚠️ Output truncated — see the workflow logs for the full report.';
+
+            let summary = '_No fixable vulnerabilities found._';
+            if (vulns.length) {
+              const counts = severityOrder
+                .map(s => [s, vulns.filter(e => e.v.severity === s).length])
+                .filter(([, n]) => n > 0)
+                .map(([s, n]) => `${severityIcon[s]} ${n} ${s.toLowerCase()}`);
+              const packages = new Set(vulns.map(e => `${e.a.name}@${e.a.version}`)).size;
+              summary = `Found ${counts.join(', ')} fixable ${vulns.length === 1 ? 'vulnerability' : 'vulnerabilities'} ` +
+                `across ${packages} ${packages === 1 ? 'package' : 'packages'} in \`${{ steps.config.outputs.image_name }}\`.\n\n` +
+                sections.join('\n\n');
+            }
+
+            let body = marker + '\n' + header + summary;
+            if (body.length > maxBody) {
+              body = body.slice(0, maxBody - truncationNotice.length) + truncationNotice;
+            }
+
+            const existing = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            }).then(r => r.data.find(c => c.body.includes(marker)));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+          }
+
+          try {
+            await run();
+          } catch (err) {
+            if (err.status === 403) {
+              core.warning(`Skipping PR comment: ${err.message}`);
+            } else {
+              throw err;
+            }
+          }
+
+      if: inputs.run_safety_checks == 'true' && inputs.comment_safety_checks == 'true' && inputs.github-token != '' && github.event_name == 'pull_request'
 
