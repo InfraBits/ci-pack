@@ -248,11 +248,10 @@ runs:
         pack build "${{ steps.config.outputs.image_name }}" "${build_args[@]}"
 
     - name: Scan Image
-      uses: infrabits/ci-trivy@0aafeb6a9b1324c7f4030e566321794a1bc48094 # v1.1.0
+      uses: infrabits/ci-image-scan@37874ffef577e89892546f8c3e4f5cd9c90a1222 # v1.0.0
       with:
         image: "${{ steps.config.outputs.image_name }}"
         comment_on_pr: "${{ inputs.comment_safety_checks == 'true' && inputs.github-token != '' }}"
         upload_sarif: "${{ inputs.github-token != '' }}"
         github-token: "${{ inputs.github-token }}"
       if: inputs.run_safety_checks == 'true'
-
