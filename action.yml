@@ -248,7 +248,7 @@ runs:
         pack build "${{ steps.config.outputs.image_name }}" "${build_args[@]}"
 
     - name: Scan Image
-      uses: infrabits/ci-image-scan@ef02c6398cde796b657b2a9ae49f1f2965c6916a # v1.11.1
+      uses: infrabits/ci-image-scan@f25ef597c1f4f99d4862b6979738b6c7e4702c7a # v1.11.2
       with:
         image: "${{ steps.config.outputs.image_name }}"
         comment_on_pr: "${{ inputs.comment_safety_checks == 'true' && inputs.github-token != '' }}"
